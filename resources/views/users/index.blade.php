@@ -4,6 +4,62 @@
         <li class="breadcrumb-item active">Users</li>
     </x-slot>
 
+    <!-- Flash Messages -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle mr-2"></i>
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('warning'))
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            {{ session('warning') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('info'))
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle mr-2"></i>
+            {{ session('info') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            <strong>Please correct the following errors:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <!-- Stats Cards -->
     <div class="row">
         <div class="col-lg-3 col-6">
@@ -77,7 +133,7 @@
                             <th>Email</th>
                             <th>Notification Status</th>
                             <th>Unread Count</th>
-                            <th>Last Login</th>
+                            
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -105,7 +161,7 @@ $(document).ready(function() {
             { data: 'email', name: 'email' },
             { data: 'notification_status', name: 'notification_status' },
             { data: 'unread_count', name: 'unread_count', orderable: false },
-            { data: 'last_login', name: 'last_login_at' },
+            
             { data: 'created_at', name: 'created_at' },
             { data: 'actions', name: 'actions', orderable: false, searchable: false }
         ],
@@ -135,33 +191,48 @@ $(document).ready(function() {
                     _token: '{{ csrf_token() }}'
                 },
                 success: function() {
-                    showToast('success', 'Impersonation started');
+                    showAlert('success', 'Impersonation started');
                     window.location.href = '{{ route("user.dashboard") }}';
                 },
                 error: function() {
-                    showToast('error', 'Failed to impersonate user');
+                    showAlert('error', 'Failed to impersonate user');
                 }
             });
         }
     });
     
-    function showToast(type, message) {
-        const toastClass = type === 'success' ? 'alert-success' : 'alert-danger';
-        const toast = $(`
-            <div class="alert ${toastClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+    function showAlert(type, message) {
+        const alertClass = {
+            success: 'alert-success',
+            error: 'alert-danger',
+            warning: 'alert-warning',
+            info: 'alert-info'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        const alertHtml = `
+            <div class="alert ${alertClass[type]} alert-dismissible fade show" role="alert">
+                <i class="${icons[type]} mr-2"></i>
                 ${message}
-                <button type="button" class="close" data-dismiss="alert">
-                    <span>&times;</span>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-        `);
+        `;
         
-        $('body').append(toast);
+        // Insert at the top of the content
+        $('.content-wrapper .content').prepend(alertHtml);
         
+        // Auto-hide after 5 seconds
         setTimeout(function() {
-            toast.alert('close');
-        }, 3000);
+            $('.alert').fadeOut();
+        }, 5000);
     }
 });
 </script>

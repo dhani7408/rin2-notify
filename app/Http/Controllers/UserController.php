@@ -94,7 +94,7 @@ class UserController extends Controller
         $orderDirection = $request->get('order')[0]['dir'] ?? 'desc';
 
         // Column mapping (unread_count is calculated, not a DB column)
-        $columns = ['id', 'name', 'email', 'notification_switch', 'last_login_at', 'created_at'];
+        $columns = ['id', 'name', 'email', 'notification_switch', 'created_at'];
         $orderColumnName = $columns[$orderColumn] ?? 'created_at';
         
         // If trying to order by unread_count (index 4), default to created_at
@@ -134,7 +134,7 @@ class UserController extends Controller
                     '<span class="badge badge-success">Enabled</span>' : 
                     '<span class="badge badge-danger">Disabled</span>',
                 'unread_count' => $this->getUnreadCountDisplay($user),
-                'last_login' => $this->getLastLoginDisplay($user),
+                
                 'created_at' => $user->created_at->format('M j, Y g:i A'),
                 'actions' => $this->getUserActionButtons($user)
             ];
@@ -161,20 +161,6 @@ class UserController extends Controller
         }
     }
 
-    /**
-     * Get last login display
-     */
-    private function getLastLoginDisplay($user)
-    {
-        if ($user->last_login_at) {
-            return '<div>' . 
-                   '<div class="text-sm">' . \Carbon\Carbon::parse($user->last_login_at)->format('M d, Y H:i') . '</div>' .
-                   '<small class="text-muted">' . \Carbon\Carbon::parse($user->last_login_at)->diffForHumans() . '</small>' .
-                   '</div>';
-        } else {
-            return '<span class="text-muted">Never</span>';
-        }
-    }
 
     /**
      * Get user action buttons

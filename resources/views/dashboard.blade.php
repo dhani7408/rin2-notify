@@ -437,6 +437,8 @@ $(document).ready(function() {
         loadRecentActivity();
         
         // Set up auto-refresh every 15 seconds for real-time updates
+        // RE-ENABLED with duplicate prevention
+        console.log('Auto-refresh ENABLED with duplicate prevention');
         refreshInterval = setInterval(function() {
             console.log('Auto-refreshing dashboard data...');
             loadNotificationStats();

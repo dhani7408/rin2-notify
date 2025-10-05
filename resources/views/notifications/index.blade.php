@@ -4,6 +4,62 @@
         <li class="breadcrumb-item active">Notifications</li>
     </x-slot>
 
+    <!-- Flash Messages -->
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle mr-2"></i>
+            {{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            {{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('warning'))
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            {{ session('warning') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if(session('info'))
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle mr-2"></i>
+            {{ session('info') }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            <strong>Please correct the following errors:</strong>
+            <ul class="mb-0 mt-2">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    @endif
+
     <!-- Stats Cards -->
     <div class="row">
         <div class="col-lg-3 col-6">
@@ -239,11 +295,11 @@ $(document).ready(function() {
                 _token: '{{ csrf_token() }}'
             },
             success: function() {
-                showToast('success', 'Notification marked as read');
+                showAlert('success', 'Notification marked as read');
                 table.ajax.reload();
             },
             error: function() {
-                showToast('error', 'Failed to mark notification as read');
+                showAlert('error', 'Failed to mark notification as read');
             }
         });
     });
@@ -258,12 +314,12 @@ $(document).ready(function() {
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    showToast('success', `Marked ${response.count} notifications as read`);
+                    showAlert('success', `Marked ${response.count} notifications as read`);
                     $('#mark-all-read-btn').hide();
                     table.ajax.reload();
                 },
                 error: function() {
-                    showToast('error', 'Failed to mark notifications as read');
+                    showAlert('error', 'Failed to mark notifications as read');
                 }
             });
         }
@@ -279,12 +335,12 @@ $(document).ready(function() {
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    showToast('success', `Marked ${response.count} notifications as read globally`);
+                    showAlert('success', `Marked ${response.count} notifications as read globally`);
                     $('#mark-all-read-global-btn').hide();
                     table.ajax.reload();
                 },
                 error: function() {
-                    showToast('error', 'Failed to mark notifications as read');
+                    showAlert('error', 'Failed to mark notifications as read');
                 }
             });
         }
@@ -298,15 +354,39 @@ $(document).ready(function() {
             $.ajax({
                 url: `/notifications/${notificationId}`,
                 method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 data: {
                     _token: '{{ csrf_token() }}'
                 },
-                success: function() {
-                    showToast('success', 'Notification deleted successfully');
-                    table.ajax.reload();
+                success: function(response) {
+                    console.log('Delete response:', response);
+                    if (response.success) {
+                        showAlert('success', response.message || 'Notification deleted successfully');
+                        table.ajax.reload();
+                        // Also reload stats
+                        loadNotificationStats();
+                    } else {
+                        showAlert('error', response.message || 'Failed to delete notification');
+                    }
                 },
-                error: function() {
-                    showToast('error', 'Failed to delete notification');
+                error: function(xhr, status, error) {
+                    console.log('Delete error:', error);
+                    console.log('Response:', xhr.responseText);
+                    console.log('Status:', xhr.status);
+                    
+                    let errorMessage = 'Failed to delete notification';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        // Use default error message
+                    }
+                    
+                    showAlert('error', errorMessage);
                 }
             });
         }
@@ -341,23 +421,38 @@ $(document).ready(function() {
         $('#global-notifications').text(stats.global);
     }
     
-    function showToast(type, message) {
-        const toastClass = type === 'success' ? 'alert-success' : 'alert-danger';
-        const toast = $(`
-            <div class="alert ${toastClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+    function showAlert(type, message) {
+        const alertClass = {
+            success: 'alert-success',
+            error: 'alert-danger',
+            warning: 'alert-warning',
+            info: 'alert-info'
+        };
+        
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        const alertHtml = `
+            <div class="alert ${alertClass[type]} alert-dismissible fade show" role="alert">
+                <i class="${icons[type]} mr-2"></i>
                 ${message}
-                <button type="button" class="close" data-dismiss="alert">
-                    <span>&times;</span>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-        `);
+        `;
         
-        $('body').append(toast);
+        // Insert at the top of the content
+        $('.content-wrapper .content').prepend(alertHtml);
         
+        // Auto-hide after 5 seconds
         setTimeout(function() {
-            toast.alert('close');
-        }, 3000);
+            $('.alert').fadeOut();
+        }, 5000);
     }
 });
 </script>

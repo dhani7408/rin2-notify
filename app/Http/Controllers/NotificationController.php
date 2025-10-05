@@ -102,37 +102,74 @@ class NotificationController extends Controller
      */
     public function update(Request $request, Notification $notification): RedirectResponse
     {
-        $request->validate([
-            'type' => 'required|in:marketing,invoices,system',
-            'text' => 'required|string|max:1000',
-            'expires_at' => 'required|date',
-            'destination' => 'required|in:specific,all',
-            'user_id' => 'required_if:destination,specific|exists:users,id',
-        ]);
+        try {
+            $request->validate([
+                'type' => 'required|in:marketing,invoices,system',
+                'text' => 'required|string|max:1000',
+                'expires_at' => 'required|date',
+                'destination' => 'required|in:specific,all',
+                'user_id' => 'required_if:destination,specific|exists:users,id',
+            ]);
 
-        $data = [
-            'type' => $request->type,
-            'text' => $request->text,
-            'expires_at' => $request->expires_at,
-            'user_id' => $request->destination === 'specific' ? $request->user_id : null,
-            'is_for_all' => $request->destination === 'all',
-        ];
+            $data = [
+                'type' => $request->type,
+                'text' => $request->text,
+                'expires_at' => $request->expires_at,
+                'user_id' => $request->destination === 'specific' ? $request->user_id : null,
+                'is_for_all' => $request->destination === 'all',
+            ];
 
-        $this->notificationService->updateNotification($notification->id, $data);
+            $result = $this->notificationService->updateNotification($notification->id, $data);
 
-        return redirect()->route('notifications.index')
-                        ->with('success', 'Notification updated successfully.');
+            if ($result) {
+                return redirect()->route('notifications.index')
+                                ->with('success', 'Notification updated successfully.');
+            } else {
+                return redirect()->back()
+                                ->withInput()
+                                ->with('error', 'Failed to update notification.');
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                            ->withErrors($e->validator)
+                            ->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error updating notification: ' . $e->getMessage());
+            return redirect()->back()
+                            ->withInput()
+                            ->with('error', 'An error occurred while updating the notification.');
+        }
     }
 
     /**
      * Remove the specified notification
      */
-    public function destroy(Notification $notification): RedirectResponse
+    public function destroy(Request $request, Notification $notification)
     {
-        $this->notificationService->deleteNotification($notification->id);
+        try {
+            $result = $this->notificationService->deleteNotification($notification->id);
 
+            if ($result) {
+                if ($request->ajax()) {
+                    return response()->json(['success' => true, 'message' => 'Notification deleted successfully.']);
+                }
         return redirect()->route('notifications.index')
                         ->with('success', 'Notification deleted successfully.');
+            } else {
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'Failed to delete notification.'], 500);
+                }
+                return redirect()->route('notifications.index')
+                                ->with('error', 'Failed to delete notification.');
+            }
+        } catch (\Exception $e) {
+            Log::error('Error deleting notification: ' . $e->getMessage());
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'An error occurred while deleting the notification.'], 500);
+            }
+            return redirect()->route('notifications.index')
+                            ->with('error', 'An error occurred while deleting the notification.');
+        }
     }
 
     /**
